@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 220 33% 98%;
+  --foreground: 224 36% 12%;
+  --muted: 220 20% 95%;
+  --muted-foreground: 224 14% 40%;
+  --border: 220 22% 86%;
+  --card: 0 0% 100%;
+}
+
+.dark {
+  --background: 222 35% 8%;
+  --foreground: 220 25% 95%;
+  --muted: 221 24% 15%;
+  --muted-foreground: 220 15% 70%;
+  --border: 221 22% 24%;
+  --card: 222 34% 11%;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+}
+
+@layer utilities {
+  .bg-background {
+    background-color: hsl(var(--background));
+  }
+  .bg-card {
+    background-color: hsl(var(--card));
+  }
+  .bg-muted {
+    background-color: hsl(var(--muted));
+  }
+  .text-foreground {
+    color: hsl(var(--foreground));
+  }
+  .text-muted-foreground {
+    color: hsl(var(--muted-foreground));
+  }
+  .border-border {
+    border-color: hsl(var(--border));
+  }
+}
