@@ -9,7 +9,7 @@ env:
   PROJECT_ID: my-gcp-playground-480411
   REGION: us-central1
   SERVICE_NAME: static-website
-  AR_REPO: static-website-repo
+  AR_REPO: static-website
   IMAGE_NAME: static-website
 
 jobs:
