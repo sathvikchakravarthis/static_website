@@ -24,7 +24,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
+      - name: Authenticate to Google Cloud (WIF)
+        id: auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
@@ -32,24 +33,44 @@ jobs:
 
       - name: Set up Google Cloud CLI
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
 
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+      # --- DEBUG: prove which identity is active (THIS is what must have writer permission) ---
+      - name: Debug gcloud identity + project
+        run: |
+          echo "== gcloud auth list =="
+          gcloud auth list
+          echo "== gcloud config list =="
+          gcloud config list
+          echo "== Active access token present? =="
+          gcloud auth print-access-token >/dev/null && echo "OK: token available"
+
+      # --- Docker auth: more robust than configure-docker in many CI runs ---
+      - name: Docker login to Artifact Registry
+        run: |
+          gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${{ env.REGION }}-docker.pkg.dev
 
       - name: Build Docker image
         run: |
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "Building: $IMAGE"
+          docker build -t "$IMAGE" .
 
       - name: Push Docker image to Artifact Registry
         run: |
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "Pushing: $IMAGE"
+          docker push "$IMAGE"
 
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "Deploying: $IMAGE"
+          gcloud run deploy "${{ env.SERVICE_NAME }}" \
+            --image "$IMAGE" \
             --platform managed \
-            --region ${{ env.REGION }} \
+            --region "${{ env.REGION }}" \
             --allow-unauthenticated \
             --memory 512Mi \
             --cpu 1 \
@@ -57,6 +78,6 @@ jobs:
 
       - name: Get Cloud Run Service URL
         run: |
-          gcloud run services describe ${{ env.SERVICE_NAME }} \
-            --region ${{ env.REGION }} \
+          gcloud run services describe "${{ env.SERVICE_NAME }}" \
+            --region "${{ env.REGION }}" \
             --format='value(status.url)'
